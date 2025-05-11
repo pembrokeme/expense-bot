@@ -1,0 +1,23 @@
+{
+  "name": "expense-bot",
+  "version": "1.0.0",
+  "description": "A Telegram bot for tracking personal expenses",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest"
+  },
+  "keywords": ["telegram", "bot", "expense", "tracker", "finance"],
+  "author": "pembrokeme",
+  "license": "MIT",
+  "dependencies": {
+    "node-telegram-bot-api": "^0.63.0",
+    "sqlite3": "^5.1.6",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.7.0"
+  }
+}
