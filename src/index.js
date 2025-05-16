@@ -50,4 +50,47 @@ Categories: food, transport, shopping, entertainment, utilities, health, other
   bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
 });
 
+// Handle /add command
+bot.onText(/\/add (.+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  const input = match[1];
+
+  // Parse input: amount category description
+  const parts = input.split(' ');
+  if (parts.length < 2) {
+    bot.sendMessage(chatId, '❌ Invalid format. Use: /add <amount> <category> <description>');
+    return;
+  }
+
+  const amount = parseFloat(parts[0]);
+  const category = parts[1].toLowerCase();
+  const description = parts.slice(2).join(' ') || '';
+
+  if (isNaN(amount) || amount <= 0) {
+    bot.sendMessage(chatId, '❌ Please enter a valid amount (number greater than 0)');
+    return;
+  }
+
+  const validCategories = ['food', 'transport', 'shopping', 'entertainment', 'utilities', 'health', 'other'];
+  if (!validCategories.includes(category)) {
+    bot.sendMessage(chatId, `❌ Invalid category. Choose from: ${validCategories.join(', ')}`);
+    return;
+  }
+
+  try {
+    await db.addExpense(userId, amount, category, description);
+    const message = `✅ Expense added successfully!
+
+💰 Amount: $${amount.toFixed(2)}
+📂 Category: ${category}
+📝 Description: ${description || 'None'}`;
+
+    bot.sendMessage(chatId, message);
+  } catch (error) {
+    console.error('Error adding expense:', error);
+    bot.sendMessage(chatId, '❌ Failed to add expense. Please try again.');
+  }
+});
+
 console.log('Expense Bot is running...');
