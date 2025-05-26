@@ -1,16 +1,41 @@
 const TelegramBot = require('node-telegram-bot-api');
 const Database = require('./database');
+const logger = require('./logger');
+const config = require('../config/config');
 require('dotenv').config();
 
-const token = process.env.BOT_TOKEN;
+const token = config.bot.token;
 const bot = new TelegramBot(token, { polling: true });
 
 // Initialize database
 const db = new Database();
 
+// Error handling
+bot.on('error', (error) => {
+  logger.error(`Bot error: ${error.message}`);
+});
+
+bot.on('polling_error', (error) => {
+  logger.error(`Polling error: ${error.message}`);
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error(`Uncaught Exception: ${error.message}`);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error(`Unhandled Rejection at: ${promise}, reason: ${reason}`);
+});
+
 // Handle /start command
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  const userName = msg.from.username || msg.from.first_name;
+
+  logger.info(`New user started bot: ${userName} (${userId})`);
+
   const welcomeMessage = `
 Welcome to Expense Bot! 💰
 
@@ -72,14 +97,26 @@ bot.onText(/\/add (.+)/, async (msg, match) => {
     return;
   }
 
-  const validCategories = ['food', 'transport', 'shopping', 'entertainment', 'utilities', 'health', 'other'];
-  if (!validCategories.includes(category)) {
-    bot.sendMessage(chatId, `❌ Invalid category. Choose from: ${validCategories.join(', ')}`);
+  if (!config.categories.includes(category)) {
+    bot.sendMessage(chatId, `❌ Invalid category. Choose from: ${config.categories.join(', ')}`);
+    return;
+  }
+
+  if (amount > config.limits.maxAmount) {
+    bot.sendMessage(chatId, `❌ Amount too large. Maximum allowed: $${config.limits.maxAmount}`);
+    return;
+  }
+
+  if (description.length > config.limits.maxDescription) {
+    bot.sendMessage(chatId, `❌ Description too long. Maximum ${config.limits.maxDescription} characters.`);
     return;
   }
 
   try {
     await db.addExpense(userId, amount, category, description);
+
+    logger.info(`Expense added: User ${userId}, Amount: $${amount}, Category: ${category}`);
+
     const message = `✅ Expense added successfully!
 
 💰 Amount: $${amount.toFixed(2)}
@@ -88,7 +125,7 @@ bot.onText(/\/add (.+)/, async (msg, match) => {
 
     bot.sendMessage(chatId, message);
   } catch (error) {
-    console.error('Error adding expense:', error);
+    logger.error(`Error adding expense for user ${userId}: ${error.message}`);
     bot.sendMessage(chatId, '❌ Failed to add expense. Please try again.');
   }
 });
@@ -167,4 +204,5 @@ bot.onText(/\/summary/, async (msg) => {
   }
 });
 
+logger.info('Expense Bot started successfully');
 console.log('Expense Bot is running...');
